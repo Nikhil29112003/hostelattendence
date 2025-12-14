@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hostel Attendance – Final</title>
+<style>
+body{font-family:Arial;background:#f2f2f2;padding:10px}
+.box{max-width:900px;margin:auto;background:#fff;padding:15px;border-radius:8px;margin-bottom:10px}
+input,button{padding:10px;margin:6px 0;font-size:15px}
+input{width:100%}
+button{background:#007bff;color:#fff;border:none;border-radius:5px;cursor:pointer}
+button.small{padding:4px 8px;font-size:12px}
+button.red{background:#dc3545}
+button.gray{background:#6c757d}
+.student{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#eee;margin:4px 0;border-radius:5px}
+.present{background:#c8f7c5}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="box" id="loginBox">
+<h2>Login</h2>
+<input id="username" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+<button id="loginBtn">Login</button>
+<p>Use: <b>admin / 1234</b></p>
+</div>
+
+<!-- MAIN -->
+<div class="box hidden" id="mainBox">
+<h2>Hostel Attendance</h2>
+
+<label>Date</label>
+<input type="date" id="date">
+
+<button class="gray" id="toggleAddSectionBtn">Show / Hide Add Student Section</button>
+<div id="addSection" class="hidden">
+<input id="studentName" placeholder="Student Name">
+<input id="roomNo" placeholder="Room Number">
+<button id="addBtn">Add Student</button>
+<button class="gray" id="toggleStudentsBtn">Show / Hide Students Added</button>
+<div id="studentsBlock" class="hidden">
+<h3>Students Added</h3>
+<div id="studentList"></div>
+</div>
+</div>
+
+<h3>Today's Attendance</h3>
+<input id="searchBox" placeholder="Search student name">
+<div id="attendanceList"></div>
+<p><b>Total Present:</b> <span id="total">0</span></p>
+<button id="showAbsentBtn" class="gray">Show Absent Students</button>
+<div id="absentList" class="hidden"></div>
+<button id="exportDailyBtn">Export Today (Present Only)</button>
+
+<script>
+// ===== ELEMENTS =====
+const loginBox = document.getElementById('loginBox');
+const mainBox = document.getElementById('mainBox');
+const username = document.getElementById('username');
+const password = document.getElementById('password');
+const loginBtn = document.getElementById('loginBtn');
+const addBtn = document.getElementById('addBtn');
+const toggleStudentsBtn = document.getElementById('toggleStudentsBtn');
+const toggleAddSectionBtn = document.getElementById('toggleAddSectionBtn');
+const dateInput = document.getElementById('date');
+const searchBox = document.getElementById('searchBox');
+const studentList = document.getElementById('studentList');
+const attendanceList = document.getElementById('attendanceList');
+const absentList = document.getElementById('absentList');
+const totalSpan = document.getElementById('total');
+const addSection = document.getElementById('addSection');
+const showAbsentBtn = document.getElementById('showAbsentBtn');
+
+// ===== DATA =====
+let students = JSON.parse(localStorage.getItem('students') || '[]');
+let attendance = JSON.parse(localStorage.getItem('attendance') || '{}');
+dateInput.valueAsDate = new Date();
+
+// ===== LOGIN =====
+loginBtn.onclick = function(){
+  if(username.value === 'admin' && password.value === '1234'){
+    loginBox.classList.add('hidden');
+    mainBox.classList.remove('hidden');
+    render();
+  } else alert('Invalid username or password');
+};
+
+// ===== TOGGLE ADD SECTION =====
+toggleAddSectionBtn.onclick = ()=> addSection.classList.toggle('hidden');
+
+// ===== ADD STUDENT =====
+addBtn.onclick = function(){
+  const name = studentName.value.trim();
+  const room = roomNo.value.trim();
+  if(!name || !room){ alert('Enter name and room'); return; }
+  students.push({name, room});
+  students.sort((a,b)=>a.name.localeCompare(b.name));
+  localStorage.setItem('students', JSON.stringify(students));
+  studentName.value=''; roomNo.value='';
+  render();
+};
+
+// ===== TOGGLE STUDENT LIST =====
+toggleStudentsBtn.onclick = ()=> studentsBlock.classList.toggle('hidden');
+
+// ===== ATTENDANCE TOGGLE =====
+function toggleAttendance(name){
+  const d = dateInput.value;
+  if(!attendance[d]) attendance[d] = [];
+  const i = attendance[d].indexOf(name);
+  if(i === -1) attendance[d].push(name);
+  else attendance[d].splice(i,1);
+  localStorage.setItem('attendance', JSON.stringify(attendance));
+  render();
+}
+
+// ===== DELETE STUDENT =====
+function deleteStudent(i){
+  if(confirm('Delete student?')){
+    students.splice(i,1);
+    localStorage.setItem('students', JSON.stringify(students));
+    render();
+  }
+}
+
+// ===== RENDER =====
+function render(){
+  studentList.innerHTML=''; attendanceList.innerHTML=''; absentList.innerHTML='';
+  let presentCount = 0;
+  const d = dateInput.value;
+  const q = searchBox.value.toLowerCase();
+
+  students.forEach((s,i)=>{
+    // Student list
+    const row = document.createElement('div');
+    row.className = 'student';
+    row.innerHTML = `<span>${s.name} (Room ${s.room})</span><button class='red small'>X</button>`;
+    row.querySelector('button').onclick = ()=>deleteStudent(i);
+    studentList.appendChild(row);
+
+    const isPresent = attendance[d]?.includes(s.name);
+
+    // Attendance list only when search matches
+    if(q && s.name.toLowerCase().includes(q)){
+      const a = document.createElement('div');
+      a.className = 'student' + (isPresent ? ' present' : '');
+      a.onclick = ()=>toggleAttendance(s.name);
+      a.innerHTML = `<span>${s.name} - Room ${s.room}</span><span>${isPresent?'✔':''}</span>`;
+      attendanceList.appendChild(a);
+    }
+
+    if(isPresent) presentCount++;
+  });
+  totalSpan.innerText = presentCount;
+}
+
+// ===== SHOW ABSENT ON BUTTON =====
+showAbsentBtn.onclick = function(){
+  absentList.classList.toggle('hidden');
+  absentList.innerHTML = '';
+  const d = dateInput.value;
+  students.forEach(s=>{
+    if(!attendance[d]?.includes(s.name)){
+      const ab = document.createElement('div');
+      ab.className = 'student';
+      ab.innerHTML = `<span>${s.name} - Room ${s.room}</span>`;
+      absentList.appendChild(ab);
+    }
+  });
+};
+
+// ===== EXPORT DAILY (Present Only) =====
+document.getElementById('exportDailyBtn').onclick = function(){
+  const d = dateInput.value;
+  let csv = 'Name,Room\n';
+  students.forEach(s=>{
+    if(attendance[d]?.includes(s.name)) csv += `${s.name},${s.room}\n`;
+  });
+  download(csv, 'Daily_Present_'+d+'.csv');
+};
+
+function download(text, filename){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text],{type:'text/csv'}));
+  a.download = filename;
+  a.click();
+}
+
+// SEARCH & DATE EVENTS
+searchBox.oninput = render;
+dateInput.onchange = render;
+</script>
+</body>
+</html>
