@@ -64,7 +64,7 @@ button.gray{background:#6c757d}
 <script>
 // 🔥 FIREBASE CONFIG (REPLACE WITH YOUR OWN)
 const firebaseConfig = {
-  apiKey: "AIzaSyB6r-_Gh7oetNvTGayPLXbkKYqSyiQv204",
+   apiKey: "AIzaSyB6r-_Gh7oetNvTGayPLXbkKYqSyiQv204",
   authDomain: "hostelattendance-c912f.firebaseapp.com",
   databaseURL: "https://hostelattendance-c912f-default-rtdb.firebaseio.com",
   projectId: "hostelattendance-c912f",
@@ -117,10 +117,9 @@ loginBtn.addEventListener('click', function (e) {
 });
 
 // ===== FIREBASE LISTENERS =====
-db.ref('students').on('value',snap=>{
+db.ref('students').on('value', snap => {
   students = snap.val() || {};
   render();
-});
 });
 
 db.ref('attendance').on('value',snap=>{
@@ -188,24 +187,34 @@ function render(){
   totalSpan.innerText = presentCount;
 }
 
-showAbsentBtn.onclick=()=>{
-  absentList.classList.toggle('hidden'); absentList.innerHTML='';
-  const d=dateInput.value;
-  students.forEach(s=>{
-    if(!attendance[d]?.includes(s.name)){
-      const ab=document.createElement('div'); ab.className='student';
-      ab.innerHTML=`<span>${s.name} - Room ${s.room}</span>`;
+showAbsentBtn.onclick = () => {
+  absentList.classList.toggle('hidden');
+  absentList.innerHTML = '';
+  const d = dateInput.value;
+  Object.values(students).forEach(s => {
+    if (!attendance[d]?.includes(s.name)) {
+      const ab = document.createElement('div');
+      ab.className = 'student';
+      ab.innerHTML = `<span>${s.name} - Room ${s.room}</span>`;
       absentList.appendChild(ab);
     }
   });
 };
 
-exportDailyBtn.onclick=()=>{
-  const d=dateInput.value; let csv='Name,Room\n';
-  students.forEach(s=>{ if(attendance[d]?.includes(s.name)) csv+=`${s.name},${s.room}\n`; });
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download='Daily_Present_'+d+'.csv'; a.click();
+exportDailyBtn.onclick = () => {
+  const d = dateInput.value;
+  let csv = 'Name,Room
+';
+  Object.values(students).forEach(s => {
+    if (attendance[d]?.includes(s.name)) {
+      csv += `${s.name},${s.room}
+`;
+    }
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'Daily_Present_' + d + '.csv';
+  a.click();
 };
 
 searchBox.oninput=render; dateInput.onchange=render;
