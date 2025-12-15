@@ -5,17 +5,71 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hostel Attendance – Firebase Cloud</title>
 <style>
-body{font-family:Arial;background:#f2f2f2;padding:10px}
-.box{max-width:900px;margin:auto;background:#fff;padding:15px;border-radius:8px;margin-bottom:10px}
-input,button{padding:8px;margin:5px 0;font-size:14px;max-width:320px}
-input{width:100%}
-button{background:#007bff;color:#fff;border:none;border-radius:5px;cursor:pointer}
-button.small{padding:4px 8px;font-size:12px}
+body{
+  font-family:'Segoe UI',Arial,sans-serif;
+  background:linear-gradient(135deg,#e3f2fd,#fce4ec);
+  padding:10px
+}
+.box{
+  max-width:900px;
+  margin:auto;
+  background:#fff;
+  padding:18px;
+  border-radius:12px;
+  margin-bottom:14px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.1)
+}
+h2,h3{color:#333;margin-bottom:10px}
+label{font-weight:600}
+input{
+  width:100%;
+  max-width:320px;
+  padding:9px;
+  margin:6px 0;
+  font-size:14px;
+  border:1px solid #ccc;
+  border-radius:6px;
+  outline:none
+}
+input:focus{border-color:#007bff}
+button{
+  padding:8px 14px;
+  margin:6px 4px 6px 0;
+  font-size:14px;
+  background:#007bff;
+  color:#fff;
+  border:none;
+  border-radius:20px;
+  cursor:pointer;
+  transition:0.2s
+}
+button:hover{opacity:0.85}
+button.small{
+  padding:4px 10px;
+  font-size:12px;
+  border-radius:14px
+}
 button.red{background:#dc3545}
 button.gray{background:#6c757d}
-.student{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#eee;margin:4px 0;border-radius:5px}
-.present{background:#c8f7c5}
+.student{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px 12px;
+  background:#f5f7fa;
+  margin:6px 0;
+  border-radius:10px;
+  transition:0.2s
+}
+.student:hover{background:#eef3f9}
+.present{
+  background:linear-gradient(90deg,#c8f7c5,#e8ffe8);
+  font-weight:600
+}
 .hidden{display:none}
+@media(max-width:600px){
+  .student{flex-direction:column;align-items:flex-start;gap:6px}
+}
 </style>
 </head>
 <body>
@@ -98,7 +152,7 @@ const studentName = document.getElementById('studentName');
 const roomNo = document.getElementById('roomNo');
 const exportDailyBtn = document.getElementById('exportDailyBtn');
 
-let students = [];
+let students = {};
 let attendance = {};
 
 dateInput.valueAsDate = new Date();
@@ -113,8 +167,9 @@ loginBtn.onclick = ()=>{
 
 // ===== FIREBASE LISTENERS =====
 db.ref('students').on('value',snap=>{
-  students = snap.val() ? Object.values(snap.val()) : [];
+  students = snap.val() || {};
   render();
+});
 });
 
 db.ref('attendance').on('value',snap=>{
@@ -147,9 +202,13 @@ function toggleAttendance(name){
 function render(){
   studentList.innerHTML=''; attendanceList.innerHTML=''; absentList.innerHTML='';
   let c=0; const d=dateInput.value; const q=searchBox.value.toLowerCase();
-  students.forEach(s=>{
+  Object.entries(students).forEach(([key,s])=>{
+    // Students Added list with delete
     const row=document.createElement('div'); row.className='student';
-    row.innerHTML=`<span>${s.name} (Room ${s.room})</span>`;
+    row.innerHTML=`<span>${s.name} (Room ${s.room})</span><button class="red small">X</button>`;
+    row.querySelector('button').onclick=()=>{
+      if(confirm('Delete student?')) db.ref('students/'+key).remove();
+    };
     studentList.appendChild(row);
 
     const p = attendance[d]?.includes(s.name);
