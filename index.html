@@ -76,12 +76,13 @@ button.gray{background:#6c757d}
 
 <!-- LOGIN -->
 <div class="box" id="loginBox">
-<h2>Login</h2>
-<input id="username" placeholder="Username">
-<input id="password" type="password" placeholder="Password">
-<button id="loginBtn">Login</button>
-<p>Use: <b>admin / 1234</b></p>
+  <h2>Login</h2>
+  <input id="loginUser" placeholder="Username">
+  <input id="loginPass" type="password" placeholder="Password">
+  <button type="button" onclick="doLogin()">Login</button>
+  <p>Use: <b>admin / 1234</b></p>
 </div>
+
 
 <!-- MAIN -->
 <div class="box hidden" id="mainBox">
@@ -246,6 +247,17 @@ exportDailyBtn.onclick=()=>{
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download='Daily_Present_'+d+'.csv'; a.click();
 };
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value.trim();
+
+  if (u === 'admin' && p === '1234') {
+    document.getElementById('loginBox').style.display = 'none';
+    document.getElementById('mainBox').style.display = 'block';
+  } else {
+    alert('Invalid username or password');
+  }
+}
 
 searchBox.oninput=render; dateInput.onchange=render;
 </script>
