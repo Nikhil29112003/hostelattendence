@@ -158,12 +158,17 @@ let attendance = {};
 dateInput.valueAsDate = new Date();
 
 // ===== LOGIN =====
-loginBtn.onclick = ()=>{
-  if(username.value==='admin' && password.value==='1234'){
+loginBtn.addEventListener('click', function (e) {
+  e.preventDefault();
+  const u = username.value.trim();
+  const p = password.value.trim();
+  if (u === 'admin' && p === '1234') {
     loginBox.classList.add('hidden');
     mainBox.classList.remove('hidden');
-  } else alert('Invalid login');
-};
+  } else {
+    alert('Invalid username or password');
+  }
+});
 
 // ===== FIREBASE LISTENERS =====
 db.ref('students').on('value',snap=>{
