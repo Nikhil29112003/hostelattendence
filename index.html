@@ -7,8 +7,7 @@
 <style>
 body{font-family:Arial;background:#f2f2f2;padding:10px}
 .box{max-width:900px;margin:auto;background:#fff;padding:15px;border-radius:8px;margin-bottom:10px}
-input,button{padding:10px;margin:6px 0;font-size:15px}
-input{width:100%}
+input,button{padding:6px;margin:4px 0;font-size:14px;max-width:280px;width:100%;box-sizing:border-box}
 button{background:#007bff;color:#fff;border:none;border-radius:5px;cursor:pointer}
 button.small{padding:4px 8px;font-size:12px}
 button.red{background:#dc3545}
@@ -64,7 +63,7 @@ button.gray{background:#6c757d}
 <script>
 // 🔥 FIREBASE CONFIG (REPLACE WITH YOUR OWN)
 const firebaseConfig = {
-   apiKey: "AIzaSyB6r-_Gh7oetNvTGayPLXbkKYqSyiQv204",
+  apiKey: "AIzaSyB6r-_Gh7oetNvTGayPLXbkKYqSyiQv204",
   authDomain: "hostelattendance-c912f.firebaseapp.com",
   databaseURL: "https://hostelattendance-c912f-default-rtdb.firebaseio.com",
   projectId: "hostelattendance-c912f",
@@ -104,8 +103,7 @@ let attendance = {};
 dateInput.valueAsDate = new Date();
 
 // ===== LOGIN =====
-loginBtn.addEventListener('click', function (e) {
-  e.preventDefault();
+loginBtn.addEventListener('click', function () {
   const u = username.value.trim();
   const p = password.value.trim();
   if (u === 'admin' && p === '1234') {
@@ -115,10 +113,6 @@ loginBtn.addEventListener('click', function (e) {
     alert('Invalid username or password');
   }
 });
-
-// ===== FIREBASE LISTENERS =====
-db.ref('students').on('value', snap => {
-  students = snap.val() || {};
   render();
 });
 
