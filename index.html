@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hostel Attendance – Final</title>
+<title>Hostel Attendance – Firebase Cloud</title>
 <style>
 body{font-family:Arial;background:#f2f2f2;padding:10px}
 .box{max-width:900px;margin:auto;background:#fff;padding:15px;border-radius:8px;margin-bottom:10px}
@@ -31,12 +31,12 @@ button.gray{background:#6c757d}
 
 <!-- MAIN -->
 <div class="box hidden" id="mainBox">
-<h2>Hostel Attendance</h2>
+<h2>Hostel Attendance (Cloud)</h2>
 
 <label>Date</label>
 <input type="date" id="date">
 
-<button class="gray" id="toggleAddSectionBtn">Show / Hide Add Student Section</button>
+<button class="gray" id="toggleAddSectionBtn">Show / Hide Add Student</button>
 <div id="addSection" class="hidden">
 <input id="studentName" placeholder="Student Name">
 <input id="roomNo" placeholder="Room Number">
@@ -55,13 +55,30 @@ button.gray{background:#6c757d}
 <button id="showAbsentBtn" class="gray">Show Absent Students</button>
 <div id="absentList" class="hidden"></div>
 <button id="exportDailyBtn">Export Today (Present Only)</button>
+</div>
+
+<!-- FIREBASE SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
+// 🔥 FIREBASE CONFIG (REPLACE WITH YOUR OWN)
+const firebaseConfig = {
+  apiKey: "AIzaSyB6r-_Gh7oetNvTGayPLXbkKYqSyiQv204",
+  authDomain: "hostelattendance-c912f.firebaseapp.com",
+  databaseURL: "https://hostelattendance-c912f-default-rtdb.firebaseio.com",
+  projectId: "hostelattendance-c912f",
+  storageBucket: "hostelattendance-c912f.firebasestorage.app",
+  messagingSenderId: "39772036836",
+  appId: "1:39772036836:web:fef0ab68acb8b2fd6056f1"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 // ===== ELEMENTS =====
 const loginBox = document.getElementById('loginBox');
 const mainBox = document.getElementById('mainBox');
-const username = document.getElementById('username');
-const password = document.getElementById('password');
 const loginBtn = document.getElementById('loginBtn');
 const addBtn = document.getElementById('addBtn');
 const toggleStudentsBtn = document.getElementById('toggleStudentsBtn');
@@ -72,127 +89,95 @@ const studentList = document.getElementById('studentList');
 const attendanceList = document.getElementById('attendanceList');
 const absentList = document.getElementById('absentList');
 const totalSpan = document.getElementById('total');
-const addSection = document.getElementById('addSection');
 const showAbsentBtn = document.getElementById('showAbsentBtn');
+const addSection = document.getElementById('addSection');
 
-// ===== DATA =====
-let students = JSON.parse(localStorage.getItem('students') || '[]');
-let attendance = JSON.parse(localStorage.getItem('attendance') || '{}');
+let students = [];
+let attendance = {};
+
 dateInput.valueAsDate = new Date();
 
 // ===== LOGIN =====
-loginBtn.onclick = function(){
-  if(username.value === 'admin' && password.value === '1234'){
+loginBtn.onclick = ()=>{
+  if(username.value==='admin' && password.value==='1234'){
     loginBox.classList.add('hidden');
     mainBox.classList.remove('hidden');
-    render();
-  } else alert('Invalid username or password');
+  } else alert('Invalid login');
 };
 
-// ===== TOGGLE ADD SECTION =====
-toggleAddSectionBtn.onclick = ()=> addSection.classList.toggle('hidden');
+// ===== FIREBASE LISTENERS =====
+db.ref('students').on('value',snap=>{
+  students = snap.val() ? Object.values(snap.val()) : [];
+  render();
+});
+
+db.ref('attendance').on('value',snap=>{
+  attendance = snap.val() || {};
+  render();
+});
 
 // ===== ADD STUDENT =====
-addBtn.onclick = function(){
+addBtn.onclick = ()=>{
   const name = studentName.value.trim();
   const room = roomNo.value.trim();
-  if(!name || !room){ alert('Enter name and room'); return; }
-  students.push({name, room});
-  students.sort((a,b)=>a.name.localeCompare(b.name));
-  localStorage.setItem('students', JSON.stringify(students));
+  if(!name||!room) return alert('Enter name & room');
+  db.ref('students').push({name,room});
   studentName.value=''; roomNo.value='';
-  render();
 };
 
-// ===== TOGGLE STUDENT LIST =====
-toggleStudentsBtn.onclick = ()=> studentsBlock.classList.toggle('hidden');
+// ===== TOGGLES =====
+toggleAddSectionBtn.onclick=()=>addSection.classList.toggle('hidden');
+toggleStudentsBtn.onclick=()=>studentsBlock.classList.toggle('hidden');
 
-// ===== ATTENDANCE TOGGLE =====
 function toggleAttendance(name){
   const d = dateInput.value;
-  if(!attendance[d]) attendance[d] = [];
-  const i = attendance[d].indexOf(name);
-  if(i === -1) attendance[d].push(name);
-  else attendance[d].splice(i,1);
-  localStorage.setItem('attendance', JSON.stringify(attendance));
-  render();
+  if(!attendance[d]) attendance[d]=[];
+  const arr = attendance[d];
+  const i = arr.indexOf(name);
+  if(i===-1) arr.push(name); else arr.splice(i,1);
+  db.ref('attendance/'+d).set(arr);
 }
 
-// ===== DELETE STUDENT =====
-function deleteStudent(i){
-  if(confirm('Delete student?')){
-    students.splice(i,1);
-    localStorage.setItem('students', JSON.stringify(students));
-    render();
-  }
-}
-
-// ===== RENDER =====
 function render(){
   studentList.innerHTML=''; attendanceList.innerHTML=''; absentList.innerHTML='';
-  let presentCount = 0;
-  const d = dateInput.value;
-  const q = searchBox.value.toLowerCase();
-
-  students.forEach((s,i)=>{
-    // Student list
-    const row = document.createElement('div');
-    row.className = 'student';
-    row.innerHTML = `<span>${s.name} (Room ${s.room})</span><button class='red small'>X</button>`;
-    row.querySelector('button').onclick = ()=>deleteStudent(i);
+  let c=0; const d=dateInput.value; const q=searchBox.value.toLowerCase();
+  students.forEach(s=>{
+    const row=document.createElement('div'); row.className='student';
+    row.innerHTML=`<span>${s.name} (Room ${s.room})</span>`;
     studentList.appendChild(row);
 
-    const isPresent = attendance[d]?.includes(s.name);
-
-    // Attendance list only when search matches
+    const p = attendance[d]?.includes(s.name);
     if(q && s.name.toLowerCase().includes(q)){
-      const a = document.createElement('div');
-      a.className = 'student' + (isPresent ? ' present' : '');
-      a.onclick = ()=>toggleAttendance(s.name);
-      a.innerHTML = `<span>${s.name} - Room ${s.room}</span><span>${isPresent?'✔':''}</span>`;
+      const a=document.createElement('div'); a.className='student'+(p?' present':'');
+      a.onclick=()=>toggleAttendance(s.name);
+      a.innerHTML=`<span>${s.name} - Room ${s.room}</span><span>${p?'✔':''}</span>`;
       attendanceList.appendChild(a);
     }
-
-    if(isPresent) presentCount++;
-  });
-  totalSpan.innerText = presentCount;
+    if(p) c++;
+  }); totalSpan.innerText=c;
 }
 
-// ===== SHOW ABSENT ON BUTTON =====
-showAbsentBtn.onclick = function(){
-  absentList.classList.toggle('hidden');
-  absentList.innerHTML = '';
-  const d = dateInput.value;
+showAbsentBtn.onclick=()=>{
+  absentList.classList.toggle('hidden'); absentList.innerHTML='';
+  const d=dateInput.value;
   students.forEach(s=>{
     if(!attendance[d]?.includes(s.name)){
-      const ab = document.createElement('div');
-      ab.className = 'student';
-      ab.innerHTML = `<span>${s.name} - Room ${s.room}</span>`;
+      const ab=document.createElement('div'); ab.className='student';
+      ab.innerHTML=`<span>${s.name} - Room ${s.room}</span>`;
       absentList.appendChild(ab);
     }
   });
 };
 
-// ===== EXPORT DAILY (Present Only) =====
-document.getElementById('exportDailyBtn').onclick = function(){
-  const d = dateInput.value;
-  let csv = 'Name,Room\n';
-  students.forEach(s=>{
-    if(attendance[d]?.includes(s.name)) csv += `${s.name},${s.room}\n`;
-  });
-  download(csv, 'Daily_Present_'+d+'.csv');
+exportDailyBtn.onclick=()=>{
+  const d=dateInput.value; let csv='Name,Room\n';
+  students.forEach(s=>{ if(attendance[d]?.includes(s.name)) csv+=`${s.name},${s.room}\n`; });
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='Daily_Present_'+d+'.csv'; a.click();
 };
 
-function download(text, filename){
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text],{type:'text/csv'}));
-  a.download = filename;
-  a.click();
-}
-
-// SEARCH & DATE EVENTS
-searchBox.oninput = render;
-dateInput.onchange = render;
+searchBox.oninput=render; dateInput.onchange=render;
 </script>
 </body>
 </html>
