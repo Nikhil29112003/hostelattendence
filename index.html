@@ -4,12 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hostel Attendance – Firebase Cloud</title>
-
 <style>
 body{font-family:Arial;background:#f2f2f2;padding:8px}
 .box{max-width:650px;margin:auto;background:#fff;padding:12px;border-radius:8px;margin-bottom:10px}
-label{font-size:13px;font-weight:bold}
-input{padding:6px;margin:4px 0;font-size:14px;width:220px;max-width:100%}
+input{padding:6px;margin:4px 0;font-size:14px;width:220px}
 button{padding:6px 10px;margin:4px 0;font-size:13px;background:#007bff;color:#fff;border:none;border-radius:5px}
 button.small{padding:3px 6px;font-size:11px}
 button.red{background:#dc3545}
@@ -29,18 +27,13 @@ button.gray{background:#6c757d}
 <input id="username" placeholder="Username">
 <input id="password" type="password" placeholder="Password">
 </div>
-<button onclick="doLogin()">Login</button>
-<p style="font-size:12px">
-Admin: admin / 1234<br>
-Staff: staff / 1111
-</p>
+<button id="loginBtn">Login</button>
 </div>
 
 <!-- MAIN -->
 <div class="box hidden" id="mainBox">
 <h3>Hostel Attendance</h3>
 
-<label>Date</label><br>
 <input type="date" id="date"><br>
 
 <button class="gray" id="toggleAddSectionBtn">Add Student</button>
@@ -54,101 +47,97 @@ Staff: staff / 1111
 
 <button class="gray small" id="toggleStudentsBtn">Show Students</button>
 <div id="studentsBlock" class="hidden">
-<h4>Students Added</h4>
 <div id="studentList"></div>
 </div>
 </div>
 
 <h4>Today's Attendance</h4>
-<input id="searchBox" placeholder="Search name">
+<input id="searchBox" placeholder="Search student">
 <div id="attendanceList"></div>
 <p><b>Total Present:</b> <span id="total">0</span></p>
 
 <button id="showAbsentBtn" class="gray">Show Absent</button>
 <div id="absentList" class="hidden"></div>
 
-<button id="exportDailyBtn">Export Present (CSV)</button>
+<button id="exportDailyBtn">Export Daily (CSV)</button>
 
 <hr>
 
-<h4>Monthly Report</h4>
+<button id="toggleMonthlyBtn" class="gray">Generate Monthly Report</button>
+
+<div id="monthlySection" class="hidden">
 <input type="month" id="monthPicker">
-<button id="generateReportBtn">Generate</button>
+<button id="generateReportBtn">Load</button>
+<button id="exportMonthlyBtn" class="gray hidden">Export Monthly</button>
 <div id="monthlyReport"></div>
 </div>
 
-<!-- FIREBASE -->
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-/* FIREBASE */
 firebase.initializeApp({
- apiKey: "AIzaSyB6r-_Gh7oetNvTGayPLXbkKYqSyiQv204",
- authDomain: "hostelattendance-c912f.firebaseapp.com",
- databaseURL: "https://hostelattendance-c912f-default-rtdb.firebaseio.com",
- projectId: "hostelattendance-c912f"
+ apiKey:"AIzaSyB6r-_Gh7oetNvTGayPLXbkKYqSyiQv204",
+ authDomain:"hostelattendance-c912f.firebaseapp.com",
+ databaseURL:"https://hostelattendance-c912f-default-rtdb.firebaseio.com",
+ projectId:"hostelattendance-c912f"
 });
-const db = firebase.database();
+const db=firebase.database();
 
 /* ELEMENTS */
-const loginBox = document.getElementById('loginBox');
-const mainBox = document.getElementById('mainBox');
-const date = document.getElementById('date');
-const username = document.getElementById('username');
-const password = document.getElementById('password');
-const studentName = document.getElementById('studentName');
-const roomNo = document.getElementById('roomNo');
-const addBtn = document.getElementById('addBtn');
-const studentList = document.getElementById('studentList');
-const attendanceList = document.getElementById('attendanceList');
-const absentList = document.getElementById('absentList');
-const searchBox = document.getElementById('searchBox');
-const total = document.getElementById('total');
-const exportDailyBtn = document.getElementById('exportDailyBtn');
+const loginBox=document.getElementById('loginBox');
+const mainBox=document.getElementById('mainBox');
+const date=document.getElementById('date');
+const username=document.getElementById('username');
+const password=document.getElementById('password');
+const studentName=document.getElementById('studentName');
+const roomNo=document.getElementById('roomNo');
+const addBtn=document.getElementById('addBtn');
+const studentList=document.getElementById('studentList');
+const attendanceList=document.getElementById('attendanceList');
+const absentList=document.getElementById('absentList');
+const searchBox=document.getElementById('searchBox');
+const total=document.getElementById('total');
+const monthlySection=document.getElementById('monthlySection');
+const monthlyReport=document.getElementById('monthlyReport');
+const exportMonthlyBtn=document.getElementById('exportMonthlyBtn');
+const toggleMonthlyBtn=document.getElementById('toggleMonthlyBtn');
+const toggleAddSectionBtn=document.getElementById('toggleAddSectionBtn');
+const toggleStudentsBtn=document.getElementById('toggleStudentsBtn');
+const showAbsentBtn=document.getElementById('showAbsentBtn');
+const generateReportBtn=document.getElementById('generateReportBtn');
+const monthPicker=document.getElementById('monthPicker');
+const loginBtn=document.getElementById('loginBtn');
 
-const addSection = document.getElementById('addSection');
-const studentsBlock = document.getElementById('studentsBlock');
-const toggleAddSectionBtn = document.getElementById('toggleAddSectionBtn');
-const toggleStudentsBtn = document.getElementById('toggleStudentsBtn');
-const showAbsentBtn = document.getElementById('showAbsentBtn');
-const generateReportBtn = document.getElementById('generateReportBtn');
-const monthPicker = document.getElementById('monthPicker');
-const monthlyReport = document.getElementById('monthlyReport');
-
-/* DATA */
-let students = {}, attendance = {}, role = '';
-date.valueAsDate = new Date();
+let students={},attendance={},role='';
+date.valueAsDate=new Date();
 
 /* LOGIN */
-function doLogin(){
+loginBtn.onclick=function(){
  if(username.value==='admin' && password.value==='1234') role='admin';
- else if(username.value==='staff' && password.value==='1111') role='staff';
+ else if(username.value==='hostel' && password.value==='1234') role='staff';
  else return alert('Invalid login');
-
  loginBox.classList.add('hidden');
  mainBox.classList.remove('hidden');
  if(role==='staff') addSection.classList.add('hidden');
-}
-
-/* ADD STUDENT */
-addBtn.onclick = ()=>{
- if(role!=='admin') return alert('No permission');
- if(!studentName.value || !roomNo.value) return alert('Fill all fields');
-
- db.ref('students').push({
-  name: studentName.value,
-  room: roomNo.value
- });
-
- studentName.value='';
- roomNo.value='';
+ render();
 };
 
-db.ref('students').on('value', s=>{students=s.val()||{}; render();});
-db.ref('attendance').on('value', s=>{attendance=s.val()||{}; render();});
+/* ADD STUDENT */
+addBtn.onclick=function(){
+ if(role!=='admin') return;
+ if(!studentName.value || !roomNo.value) return alert('Fill all fields');
+ db.ref('students').push({name:studentName.value,room:roomNo.value});
+ studentName.value=''; roomNo.value='';
+};
 
-/* ATTENDANCE */
+/* FETCH DATA */
+db.ref('students').on('value',s=>{students=s.val()||{}; render();});
+db.ref('attendance').on('value',s=>{attendance=s.val()||{}; render();});
+
+/* TOGGLE ATTENDANCE */
 function toggleAttendance(id){
  const d=date.value;
  if(!attendance[d]) attendance[d]={};
@@ -156,20 +145,23 @@ function toggleAttendance(id){
  db.ref('attendance/'+d).set(attendance[d]);
 }
 
-/* RENDER */
+/* RENDER FUNCTION */
 function render(){
- studentList.innerHTML='';
  attendanceList.innerHTML='';
+ studentList.innerHTML='';
  absentList.innerHTML='';
  let count=0, d=date.value, q=searchBox.value.toLowerCase();
 
  Object.entries(students).forEach(([id,s])=>{
+  // Show all students in student list
   let row=document.createElement('div');
   row.className='student';
   row.innerHTML=`${s.name} (${s.room}) ${role==='admin'?'<button class="red small">X</button>':''}`;
-  if(role==='admin') row.querySelector('button').onclick=()=>db.ref('students/'+id).remove();
+  if(role==='admin') row.querySelector('button')?.onclick=()=>db.ref('students/'+id).remove();
   studentList.appendChild(row);
 
+  // Attendance search logic
+  if(role!=='admin' && !q) return; // staff sees attendance only via search
   if(q && !s.name.toLowerCase().includes(q)) return;
 
   let p=attendance[d]?.[id];
@@ -184,7 +176,7 @@ function render(){
 }
 
 /* ABSENT */
-showAbsentBtn.onclick=()=>{
+showAbsentBtn.onclick=function(){
  absentList.classList.toggle('hidden');
  absentList.innerHTML='';
  const d=date.value;
@@ -198,21 +190,25 @@ showAbsentBtn.onclick=()=>{
  });
 };
 
-/* EXPORT */
-exportDailyBtn.onclick=()=>{
+/* EXPORT DAILY */
+document.getElementById('exportDailyBtn').onclick=function(){
  let csv='Name,Room\n', d=date.value;
  Object.entries(students).forEach(([id,s])=>{
   if(attendance[d]?.[id]) csv+=`${s.name},${s.room}\n`;
  });
  let a=document.createElement('a');
  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
- a.download='Present_'+d+'.csv';
+ a.download='Daily_Report_'+d+'.csv';
  a.click();
 };
 
-/* MONTHLY REPORT */
-generateReportBtn.onclick=()=>{
+/* MONTHLY SECTION */
+toggleMonthlyBtn.onclick=function(){ monthlySection.classList.toggle('hidden'); };
+
+generateReportBtn.onclick=function(){
  monthlyReport.innerHTML='';
+ if(role!=='admin') return;
+ exportMonthlyBtn.classList.remove('hidden');
  let m=monthPicker.value;
  Object.keys(attendance).forEach(d=>{
   if(d.startsWith(m)){
@@ -220,16 +216,35 @@ generateReportBtn.onclick=()=>{
    let t=Object.keys(students).length;
    let div=document.createElement('div');
    div.className='student';
-   div.innerText=`${d} → Present: ${p}, Absent: ${t-p}`;
+   div.innerHTML=`${d} → Present:${p} Absent:${t-p} <button class="red small">Delete</button>`;
+   div.querySelector('button').onclick=()=>db.ref('attendance/'+d).remove();
    monthlyReport.appendChild(div);
   }
  });
 };
 
+/* EXPORT MONTHLY */
+exportMonthlyBtn.onclick=function(){
+ let csv='Date,Present,Absent\n';
+ let m=monthPicker.value;
+ Object.keys(attendance).forEach(d=>{
+  if(d.startsWith(m)){
+   let p=Object.values(attendance[d]).filter(v=>v).length;
+   csv+=`${d},${p},${Object.keys(students).length-p}\n`;
+  }
+ });
+ let a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+ a.download='Monthly_Report.csv';
+ a.click();
+};
+
+/* EVENT LISTENERS */
 searchBox.oninput=render;
 date.onchange=render;
 toggleAddSectionBtn.onclick=()=>addSection.classList.toggle('hidden');
 toggleStudentsBtn.onclick=()=>studentsBlock.classList.toggle('hidden');
+
 </script>
 </body>
 </html>
