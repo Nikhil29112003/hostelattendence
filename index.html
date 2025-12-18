@@ -78,173 +78,176 @@ button.gray{background:#6c757d}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-firebase.initializeApp({
- apiKey:"AIzaSyB6r-_Gh7oetNvTGayPLXbkKYqSyiQv204",
- authDomain:"hostelattendance-c912f.firebaseapp.com",
- databaseURL:"https://hostelattendance-c912f-default-rtdb.firebaseio.com",
- projectId:"hostelattendance-c912f"
+document.addEventListener('DOMContentLoaded', function() {
+    firebase.initializeApp({
+        apiKey:"AIzaSyB6r-_Gh7oetNvTGayPLXbkKYqSyiQv204",
+        authDomain:"hostelattendance-c912f.firebaseapp.com",
+        databaseURL:"https://hostelattendance-c912f-default-rtdb.firebaseio.com",
+        projectId:"hostelattendance-c912f"
+    });
+    const db = firebase.database();
+
+    /* ELEMENTS */
+    const loginBox = document.getElementById('loginBox');
+    const mainBox = document.getElementById('mainBox');
+    const addSection = document.getElementById('addSection');
+    const date = document.getElementById('date');
+    const username = document.getElementById('username');
+    const password = document.getElementById('password');
+    const studentName = document.getElementById('studentName');
+    const roomNo = document.getElementById('roomNo');
+    const addBtn = document.getElementById('addBtn');
+    const studentList = document.getElementById('studentList');
+    const attendanceList = document.getElementById('attendanceList');
+    const absentList = document.getElementById('absentList');
+    const searchBox = document.getElementById('searchBox');
+    const total = document.getElementById('total');
+    const toggleAddSectionBtn = document.getElementById('toggleAddSectionBtn');
+    const toggleStudentsBtn = document.getElementById('toggleStudentsBtn');
+    const showAbsentBtn = document.getElementById('showAbsentBtn');
+    const exportDailyBtn = document.getElementById('exportDailyBtn');
+    const toggleMonthlyBtn = document.getElementById('toggleMonthlyBtn');
+    const monthlySection = document.getElementById('monthlySection');
+    const generateReportBtn = document.getElementById('generateReportBtn');
+    const monthPicker = document.getElementById('monthPicker');
+    const monthlyReport = document.getElementById('monthlyReport');
+    const exportMonthlyBtn = document.getElementById('exportMonthlyBtn');
+    const loginBtn = document.getElementById('loginBtn');
+
+    let students = {}, attendance = {}, role = '';
+    date.valueAsDate = new Date();
+
+    /* LOGIN */
+    loginBtn.onclick = function() {
+        if(username.value === 'admin' && password.value === '1234') role = 'admin';
+        else if(username.value === 'hostel' && password.value === '1234') role = 'staff';
+        else return alert('Invalid login');
+
+        loginBox.classList.add('hidden');
+        mainBox.classList.remove('hidden');
+        if(role === 'staff') addSection.classList.add('hidden');
+        render();
+    };
+
+    /* ADD STUDENT */
+    addBtn.onclick = function() {
+        if(role !== 'admin') return;
+        if(!studentName.value || !roomNo.value) return alert('Fill all fields');
+        db.ref('students').push({name: studentName.value, room: roomNo.value});
+        studentName.value=''; roomNo.value='';
+    };
+
+    /* FETCH DATA */
+    db.ref('students').on('value', s => { students = s.val()||{}; render(); });
+    db.ref('attendance').on('value', s => { attendance = s.val()||{}; render(); });
+
+    /* TOGGLE ATTENDANCE */
+    function toggleAttendance(id) {
+        const d = date.value;
+        if(!attendance[d]) attendance[d] = {};
+        attendance[d][id] = !attendance[d][id];
+        db.ref('attendance/' + d).set(attendance[d]);
+    }
+
+    /* RENDER FUNCTION */
+    function render() {
+        attendanceList.innerHTML = '';
+        studentList.innerHTML = '';
+        absentList.innerHTML = '';
+        let count = 0, d = date.value, q = searchBox.value.toLowerCase();
+
+        Object.entries(students).forEach(([id,s])=>{
+            // Show all students in student list
+            let row = document.createElement('div');
+            row.className = 'student';
+            row.innerHTML = `${s.name} (${s.room}) ${role==='admin'?'<button class="red small">X</button>':''}`;
+            if(role==='admin') row.querySelector('button')?.onclick = ()=>db.ref('students/'+id).remove();
+            studentList.appendChild(row);
+
+            // Attendance search for staff
+            if(role==='staff' && (!q || !s.name.toLowerCase().includes(q))) return;
+
+            let p = attendance[d]?.[id];
+            let a = document.createElement('div');
+            a.className = 'student'+(p?' present':'');
+            a.innerHTML = `${s.name} (${s.room}) ${p?'✔':''}`;
+            a.onclick = ()=>toggleAttendance(id);
+            attendanceList.appendChild(a);
+            if(p) count++;
+        });
+        total.innerText = count;
+    }
+
+    /* ABSENT */
+    showAbsentBtn.onclick = function() {
+        absentList.classList.toggle('hidden');
+        absentList.innerHTML = '';
+        const d = date.value;
+        Object.entries(students).forEach(([id,s])=>{
+            if(!attendance[d]?.[id]){
+                let div = document.createElement('div');
+                div.className = 'student';
+                div.innerText = `${s.name} (${s.room})`;
+                absentList.appendChild(div);
+            }
+        });
+    };
+
+    /* EXPORT DAILY */
+    exportDailyBtn.onclick = function() {
+        let csv = 'Name,Room\n', d = date.value;
+        Object.entries(students).forEach(([id,s])=>{
+            if(attendance[d]?.[id]) csv += `${s.name},${s.room}\n`;
+        });
+        let a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+        a.download = 'Daily_Report_'+d+'.csv';
+        a.click();
+    };
+
+    /* MONTHLY SECTION */
+    toggleMonthlyBtn.onclick = function() { monthlySection.classList.toggle('hidden'); };
+
+    generateReportBtn.onclick = function() {
+        if(role !== 'admin') return;
+        monthlyReport.innerHTML = '';
+        exportMonthlyBtn.classList.remove('hidden');
+        let m = monthPicker.value;
+        Object.keys(attendance).forEach(d=>{
+            if(d.startsWith(m)){
+                let p = Object.values(attendance[d]).filter(v=>v).length;
+                let t = Object.keys(students).length;
+                let div = document.createElement('div');
+                div.className = 'student';
+                div.innerHTML = `${d} → Present:${p} Absent:${t-p} <button class="red small">Delete</button>`;
+                div.querySelector('button').onclick = ()=>db.ref('attendance/'+d).remove();
+                monthlyReport.appendChild(div);
+            }
+        });
+    };
+
+    /* EXPORT MONTHLY */
+    exportMonthlyBtn.onclick = function() {
+        let csv='Date,Present,Absent\n';
+        let m = monthPicker.value;
+        Object.keys(attendance).forEach(d=>{
+            if(d.startsWith(m)){
+                let p = Object.values(attendance[d]).filter(v=>v).length;
+                csv += `${d},${p},${Object.keys(students).length-p}\n`;
+            }
+        });
+        let a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+        a.download = 'Monthly_Report.csv';
+        a.click();
+    };
+
+    /* EVENT LISTENERS */
+    searchBox.oninput = render;
+    date.onchange = render;
+    toggleAddSectionBtn.onclick = ()=>addSection.classList.toggle('hidden');
+    toggleStudentsBtn.onclick = ()=>document.getElementById('studentsBlock').classList.toggle('hidden');
 });
-const db=firebase.database();
-
-/* ELEMENTS */
-const loginBox=document.getElementById('loginBox');
-const mainBox=document.getElementById('mainBox');
-const date=document.getElementById('date');
-const username=document.getElementById('username');
-const password=document.getElementById('password');
-const studentName=document.getElementById('studentName');
-const roomNo=document.getElementById('roomNo');
-const addBtn=document.getElementById('addBtn');
-const studentList=document.getElementById('studentList');
-const attendanceList=document.getElementById('attendanceList');
-const absentList=document.getElementById('absentList');
-const searchBox=document.getElementById('searchBox');
-const total=document.getElementById('total');
-const monthlySection=document.getElementById('monthlySection');
-const monthlyReport=document.getElementById('monthlyReport');
-const exportMonthlyBtn=document.getElementById('exportMonthlyBtn');
-const toggleMonthlyBtn=document.getElementById('toggleMonthlyBtn');
-const toggleAddSectionBtn=document.getElementById('toggleAddSectionBtn');
-const toggleStudentsBtn=document.getElementById('toggleStudentsBtn');
-const showAbsentBtn=document.getElementById('showAbsentBtn');
-const generateReportBtn=document.getElementById('generateReportBtn');
-const monthPicker=document.getElementById('monthPicker');
-const loginBtn=document.getElementById('loginBtn');
-
-let students={},attendance={},role='';
-date.valueAsDate=new Date();
-
-/* LOGIN */
-loginBtn.onclick=function(){
- if(username.value==='admin' && password.value==='1234') role='admin';
- else if(username.value==='hostel' && password.value==='1234') role='staff';
- else return alert('Invalid login');
- loginBox.classList.add('hidden');
- mainBox.classList.remove('hidden');
- if(role==='staff') addSection.classList.add('hidden');
- render();
-};
-
-/* ADD STUDENT */
-addBtn.onclick=function(){
- if(role!=='admin') return;
- if(!studentName.value || !roomNo.value) return alert('Fill all fields');
- db.ref('students').push({name:studentName.value,room:roomNo.value});
- studentName.value=''; roomNo.value='';
-};
-
-/* FETCH DATA */
-db.ref('students').on('value',s=>{students=s.val()||{}; render();});
-db.ref('attendance').on('value',s=>{attendance=s.val()||{}; render();});
-
-/* TOGGLE ATTENDANCE */
-function toggleAttendance(id){
- const d=date.value;
- if(!attendance[d]) attendance[d]={};
- attendance[d][id]=!attendance[d][id];
- db.ref('attendance/'+d).set(attendance[d]);
-}
-
-/* RENDER FUNCTION */
-function render(){
- attendanceList.innerHTML='';
- studentList.innerHTML='';
- absentList.innerHTML='';
- let count=0, d=date.value, q=searchBox.value.toLowerCase();
-
- Object.entries(students).forEach(([id,s])=>{
-  // Show all students in student list
-  let row=document.createElement('div');
-  row.className='student';
-  row.innerHTML=`${s.name} (${s.room}) ${role==='admin'?'<button class="red small">X</button>':''}`;
-  if(role==='admin') row.querySelector('button')?.onclick=()=>db.ref('students/'+id).remove();
-  studentList.appendChild(row);
-
-  // Attendance search logic
-  if(role!=='admin' && !q) return; // staff sees attendance only via search
-  if(q && !s.name.toLowerCase().includes(q)) return;
-
-  let p=attendance[d]?.[id];
-  let a=document.createElement('div');
-  a.className='student'+(p?' present':'');
-  a.innerHTML=`${s.name} (${s.room}) ${p?'✔':''}`;
-  a.onclick=()=>toggleAttendance(id);
-  attendanceList.appendChild(a);
-  if(p) count++;
- });
- total.innerText=count;
-}
-
-/* ABSENT */
-showAbsentBtn.onclick=function(){
- absentList.classList.toggle('hidden');
- absentList.innerHTML='';
- const d=date.value;
- Object.entries(students).forEach(([id,s])=>{
-  if(!attendance[d]?.[id]){
-   let div=document.createElement('div');
-   div.className='student';
-   div.innerText=`${s.name} (${s.room})`;
-   absentList.appendChild(div);
-  }
- });
-};
-
-/* EXPORT DAILY */
-document.getElementById('exportDailyBtn').onclick=function(){
- let csv='Name,Room\n', d=date.value;
- Object.entries(students).forEach(([id,s])=>{
-  if(attendance[d]?.[id]) csv+=`${s.name},${s.room}\n`;
- });
- let a=document.createElement('a');
- a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
- a.download='Daily_Report_'+d+'.csv';
- a.click();
-};
-
-/* MONTHLY SECTION */
-toggleMonthlyBtn.onclick=function(){ monthlySection.classList.toggle('hidden'); };
-
-generateReportBtn.onclick=function(){
- monthlyReport.innerHTML='';
- if(role!=='admin') return;
- exportMonthlyBtn.classList.remove('hidden');
- let m=monthPicker.value;
- Object.keys(attendance).forEach(d=>{
-  if(d.startsWith(m)){
-   let p=Object.values(attendance[d]).filter(v=>v).length;
-   let t=Object.keys(students).length;
-   let div=document.createElement('div');
-   div.className='student';
-   div.innerHTML=`${d} → Present:${p} Absent:${t-p} <button class="red small">Delete</button>`;
-   div.querySelector('button').onclick=()=>db.ref('attendance/'+d).remove();
-   monthlyReport.appendChild(div);
-  }
- });
-};
-
-/* EXPORT MONTHLY */
-exportMonthlyBtn.onclick=function(){
- let csv='Date,Present,Absent\n';
- let m=monthPicker.value;
- Object.keys(attendance).forEach(d=>{
-  if(d.startsWith(m)){
-   let p=Object.values(attendance[d]).filter(v=>v).length;
-   csv+=`${d},${p},${Object.keys(students).length-p}\n`;
-  }
- });
- let a=document.createElement('a');
- a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
- a.download='Monthly_Report.csv';
- a.click();
-};
-
-/* EVENT LISTENERS */
-searchBox.oninput=render;
-date.onchange=render;
-toggleAddSectionBtn.onclick=()=>addSection.classList.toggle('hidden');
-toggleStudentsBtn.onclick=()=>studentsBlock.classList.toggle('hidden');
-
 </script>
 </body>
 </html>
